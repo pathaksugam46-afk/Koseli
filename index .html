@@ -221,17 +221,33 @@
       .menu { grid-template-columns: 1fr 1fr; }
     }
 
-    /* sections start hidden and fade up when scrolled into view */
     .menu section {
       padding-top: 22px;
+    }
+
+    /* Fade-in is added by the script only AFTER the menu was built successfully,
+       so a script problem can never leave the menu invisible. */
+    .menu section.reveal {
       opacity: 0;
       transform: translateY(24px);
       transition: opacity 0.7s ease, transform 0.7s ease;
     }
 
-    .menu section.visible {
+    .menu section.reveal.visible {
       opacity: 1;
       transform: none;
+    }
+
+    /* shown if the menu cannot be built */
+    .menu-error {
+      grid-column: 1 / -1;
+      margin: 20px 0;
+      padding: 14px 16px;
+      border: 1px solid var(--wine);
+      border-radius: 8px;
+      background: #f7e9ec;
+      color: var(--wine);
+      font-size: 14px;
     }
 
     h2 {
@@ -325,7 +341,7 @@
     /* people who turned animations off get a calm page */
     @media (prefers-reduced-motion: reduce) {
       * { animation: none !important; transition: none !important; }
-      .menu section { opacity: 1; transform: none; }
+      .menu section.reveal { opacity: 1; transform: none; }
     }
   </style>
 </head>
@@ -349,7 +365,9 @@
   <nav class="category-nav" id="category-nav" aria-label="Menu categories"></nav>
 
   <div class="sheet">
-    <main class="menu" id="menu"></main>
+    <main class="menu" id="menu">
+      <noscript><p class="menu-error">Please turn on JavaScript to see the menu, or call us on +977 9702692122.</p></noscript>
+    </main>
   </div>
 
   <footer class="site-footer">
@@ -357,322 +375,385 @@
   </footer>
 
   <script>
+    "use strict";
+
     // Currency shown before every price
-    var CURRENCY = "Rs.";
+    const CURRENCY = "Rs.";
 
     // MENU DATA
     // Each item is ["Name", "Price"]. Leave the price out and only the name shows.
-    // To add an item, copy one line and change it. To add a category, copy a whole { ... } block.
-    var MENU = [
-  {
-    id: "momo",
-    title: "Momo",
-    items: [
-      ["Veg Steam Momo", "100"],
-      ["Veg Jhol Momo", "120"],
-      ["Veg Chilli Momo", "130"],
-      ["Veg Fried Momo", "150"],
-      ["Chicken Steam Momo", "120"],
-      ["Chicken Jhol Momo", "200"],
-      ["Chicken Chilli Momo", "250"],
-      ["Chicken Fried Momo", "200"],
-      ["Buff Steam Momo", "200"],
-      ["Buff Jhol Momo", "250"],
-      ["Buff Chilli Momo", "300"],
-      ["Buff Fried Momo", "350"],
-      ["Mutton Steam Momo", "250"],
-      ["Mutton Jhol Momo", "300"],
-      ["Mutton Chilli Momo", "350"],
-      ["Mutton Fried Momo", "350"],
-      ["Pork Steam Momo", "200"],
-      ["Pork Jhol Momo", "250"],
-      ["Pork Chilli Momo", "250"],
-      ["Pork Fried Momo", "280"],
-    ]
-  },
-  {
-    id: "chowmein",
-    title: "Chowmein",
-    items: [
-      ["Veg Chowmein"],
-      ["Paneer Chowmein"],
-      ["Buff Chowmein"],
-      ["Chicken Chowmein"],
-      ["Egg Chowmein"],
-    ]
-  },
-  {
-    id: "biryani",
-    title: "Biryani",
-    note: "Prices shown as Plate / Box.",
-    items: [
-      ["Veg Biryani", "110 / 120"],
-      ["Chicken Biryani", "110 / 130"],
-      ["Mutton Biryani", "250 / 300"],
-      ["Egg Biryani", "150 / 150"],
-      ["Hyderabadi Biryani"],
-      ["Fish Biryani"],
-      ["Kolkata Biryani"],
-      ["Mughlai Biryani"],
-    ]
-  },
-  {
-    id: "friedrice",
-    title: "Fried Rice",
-    items: [
-      ["Veg Fried Rice"],
-      ["Chicken Fried Rice"],
-      ["Egg Fried Rice"],
-    ]
-  },
-  {
-    id: "chatpate",
-    title: "Chatpate",
-    items: [
-      ["Veg Chatpate"],
-      ["Non-veg Chatpate"],
-      ["Chicken Chatpate"],
-    ]
-  },
-  {
-    id: "puri",
-    title: "Puri Tarkari",
-    items: [
-      ["Puri Tarkari"],
-    ]
-  },
-  {
-    id: "chana",
-    title: "Chana Chura",
-    items: [
-      ["Chana Chura"],
-    ]
-  },
-  {
-    id: "thukpa",
-    title: "Thukpa",
-    items: [
-      ["Veg Thukpa", "150"],
-      ["Chicken Thukpa", "200"],
-      ["Egg Thukpa", "170"],
-      ["Buff Thukpa", "190"],
-    ]
-  },
-  {
-    id: "roll",
-    title: "Rolls",
-    items: [
-      ["Chicken Roll", "180"],
-      ["Chicken Sekuwa Roll", "200"],
-      ["Egg Roll", "130"],
-      ["Egg Chicken Roll", "220"],
-      ["Paneer Roll", "180"],
-      ["Veg Roll", "120"],
-      ["Sausage Roll", "160"],
-      ["Spring Roll", "120"],
-      ["Chicken Cheese Roll", "240"],
-      ["Mushroom Roll", "170"],
-      ["Mixed Roll (Chicken + Egg)", "250"],
-    ]
-  },
-  {
-    id: "pizza",
-    title: "Pizza",
-    items: [
-      ["Chicken Pizza (Large)", "650"],
-      ["Cheese Pizza", "550"],
-      ["Veg Pizza", "500"],
-      ["Chicken Mushroom Pizza", "580"],
-      ["Sausage Pizza", "550"],
-      ["Buff Pizza", "550"],
-      ["Mix Pizza", "550"],
-      ["Paneer Pizza"],
-      ["Chicken Salami Pizza", "650"],
-      ["Margherita Pizza", "500"],
-    ]
-  },
-  {
-    id: "pakoda",
-    title: "Pakoda",
-    items: [
-      ["Veg Pakoda"],
-      ["Onion Pakoda"],
-      ["Paneer Pakoda"],
-      ["Mushroom Pakoda"],
-      ["Chicken Pakoda"],
-      ["Mixed Veg Pakoda"],
-      ["Dal Pakoda"],
-    ]
-  },
-  {
-    id: "paratha",
-    title: "Paratha",
-    items: [
-      ["Aloo Paratha"],
-      ["Plain Paratha"],
-      ["Paneer Paratha"],
-      ["Chicken Paratha"],
-      ["Egg Paratha"],
-      ["Cheese Paratha"],
-      ["Mixed Veg Paratha"],
-      ["Onion Paratha"],
-    ]
-  },
-  {
-    id: "keema",
-    title: "Keema Noodles",
-    items: [
-      ["Chicken Keema Noodles", "220"],
-      ["Mutton Keema Noodles", "300"],
-      ["Buff Keema Noodles", "280"],
-      ["Mixed Keema Noodles", "280"],
-      ["Spicy Keema Noodles", "240"],
-    ]
-  },
-  {
-    id: "roti",
-    title: "Roti",
-    items: [
-      ["Plain Roti"],
-      ["Butter Roti"],
-      ["Naan Roti"],
-      ["Cheese Roti"],
-      ["Tandoori Roti"],
-    ]
-  },
-  {
-    id: "khana",
-    title: "Khana Set",
-    items: [
-      ["Dal Bhat Set", "200"],
-      ["Chicken Khana Set", "270"],
-      ["Mutton Khana Set", "350-400"],
-      ["Pork Khana Set", "350-400"],
-      ["Egg Khana Set", "250"],
-      ["Thakali Khana Set", "500"],
-    ]
-  },
-  {
-    id: "sausage",
-    title: "Sausage",
-    items: [
-      ["Chicken Sausage", "60 / piece"],
-      ["Buff Sausage", "80 / piece"],
-      ["Pork Sausage", "100 / piece"],
-      ["Cheese Sausage", "120 / piece"],
-    ]
-  },
-  {
-    id: "burger",
-    title: "Burger",
-    items: [
-      ["Chicken Burger", "100-180"],
-      ["Veg Burger", "100-120"],
-      ["Egg Burger", "100-140"],
-      ["Mushroom Burger", "150"],
-      ["Fish Burger", "200"],
-      ["Paneer Burger", "170"],
-      ["BBQ Chicken Burger", "250"],
-      ["Crispy Chicken Burger", "270"],
-    ]
-  },
-  {
-    id: "sandwich",
-    title: "Sandwich",
-    items: [
-      ["Veg Sandwich", "120"],
-      ["Chicken Sandwich", "200"],
-      ["Cheese Sandwich", "180"],
-      ["Grilled Sandwich", "200"],
-      ["Egg Sandwich", "150"],
-      ["Veg Cheese Sandwich", "200"],
-    ]
-  },
-  {
-    id: "gravy",
-    title: "Gravy",
-    items: [
-      ["Egg Curry", "280"],
-      ["Aloo Dum", "180"],
-      ["Fish Curry (250g)", "450"],
-      ["Chicken Kadai (150g with bone)", "550"],
-      ["Chicken Curry", "500"],
-      ["Mutton Curry", "750"],
-      ["Paneer Curry (250g)", "450"],
-      ["Matar Paneer (250g)", "470"],
-      ["Mix Vegetable Curry", "350"],
-    ]
-  },
-  {
-    id: "snacks",
-    title: "Snacks",
-    items: [
-      ["Samosa", "35 / piece"],
-      ["Samosa Chat", "100"],
-      ["Pani Puri", "80 / plate"],
-      ["French Fry", "150"],
-      ["Dahi Chura", "100 / plate"],
-    ]
-  },
+    // The price can be text ("350-400") or a number (150).
+    const MENU = [
+      {
+        id: "momo",
+        title: "Momo",
+        items: [
+          ["Veg Steam Momo", "100"],
+          ["Veg Jhol Momo", "120"],
+          ["Veg Chilli Momo", "130"],
+          ["Veg Fried Momo", "150"],
+          ["Chicken Steam Momo", "120"],
+          ["Chicken Jhol Momo", "200"],
+          ["Chicken Chilli Momo", "250"],
+          ["Chicken Fried Momo", "200"],
+          ["Buff Steam Momo", "200"],
+          ["Buff Jhol Momo", "250"],
+          ["Buff Chilli Momo", "300"],
+          ["Buff Fried Momo", "350"],
+          ["Mutton Steam Momo", "250"],
+          ["Mutton Jhol Momo", "300"],
+          ["Mutton Chilli Momo", "350"],
+          ["Mutton Fried Momo", "350"],
+          ["Pork Steam Momo", "200"],
+          ["Pork Jhol Momo", "250"],
+          ["Pork Chilli Momo", "250"],
+          ["Pork Fried Momo", "280"],
+        ]
+      },
+      {
+        id: "chowmein",
+        title: "Chowmein",
+        items: [
+          ["Veg Chowmein"],
+          ["Paneer Chowmein"],
+          ["Buff Chowmein"],
+          ["Chicken Chowmein"],
+          ["Egg Chowmein"],
+        ]
+      },
+      {
+        id: "biryani",
+        title: "Biryani",
+        note: "Prices shown as Plate / Box.",
+        items: [
+          ["Veg Biryani", "110 / 120"],
+          ["Chicken Biryani", "110 / 130"],
+          ["Mutton Biryani", "250 / 300"],
+          ["Egg Biryani", "150 / 150"],
+          ["Hyderabadi Biryani"],
+          ["Fish Biryani"],
+          ["Kolkata Biryani"],
+          ["Mughlai Biryani"],
+        ]
+      },
+      {
+        id: "friedrice",
+        title: "Fried Rice",
+        items: [
+          ["Veg Fried Rice"],
+          ["Chicken Fried Rice"],
+          ["Egg Fried Rice"],
+        ]
+      },
+      {
+        id: "chatpate",
+        title: "Chatpate",
+        items: [
+          ["Veg Chatpate"],
+          ["Non-veg Chatpate"],
+          ["Chicken Chatpate"],
+        ]
+      },
+      {
+        id: "puri",
+        title: "Puri Tarkari",
+        items: [
+          ["Puri Tarkari"],
+        ]
+      },
+      {
+        id: "chana",
+        title: "Chana Chura",
+        items: [
+          ["Chana Chura"],
+        ]
+      },
+      {
+        id: "thukpa",
+        title: "Thukpa",
+        items: [
+          ["Veg Thukpa", "150"],
+          ["Chicken Thukpa", "200"],
+          ["Egg Thukpa", "170"],
+          ["Buff Thukpa", "190"],
+        ]
+      },
+      {
+        id: "roll",
+        title: "Rolls",
+        items: [
+          ["Chicken Roll", "180"],
+          ["Chicken Sekuwa Roll", "200"],
+          ["Egg Roll", "130"],
+          ["Egg Chicken Roll", "220"],
+          ["Paneer Roll", "180"],
+          ["Veg Roll", "120"],
+          ["Sausage Roll", "160"],
+          ["Spring Roll", "120"],
+          ["Chicken Cheese Roll", "240"],
+          ["Mushroom Roll", "170"],
+          ["Mixed Roll (Chicken + Egg)", "250"],
+        ]
+      },
+      {
+        id: "pizza",
+        title: "Pizza",
+        items: [
+          ["Chicken Pizza (Large)", "650"],
+          ["Cheese Pizza", "550"],
+          ["Veg Pizza", "500"],
+          ["Chicken Mushroom Pizza", "580"],
+          ["Sausage Pizza", "550"],
+          ["Buff Pizza", "550"],
+          ["Mix Pizza", "550"],
+          ["Paneer Pizza"],
+          ["Chicken Salami Pizza", "650"],
+          ["Margherita Pizza", "500"],
+        ]
+      },
+      {
+        id: "pakoda",
+        title: "Pakoda",
+        items: [
+          ["Veg Pakoda"],
+          ["Onion Pakoda"],
+          ["Paneer Pakoda"],
+          ["Mushroom Pakoda"],
+          ["Chicken Pakoda"],
+          ["Mixed Veg Pakoda"],
+          ["Dal Pakoda"],
+        ]
+      },
+      {
+        id: "paratha",
+        title: "Paratha",
+        items: [
+          ["Aloo Paratha"],
+          ["Plain Paratha"],
+          ["Paneer Paratha"],
+          ["Chicken Paratha"],
+          ["Egg Paratha"],
+          ["Cheese Paratha"],
+          ["Mixed Veg Paratha"],
+          ["Onion Paratha"],
+        ]
+      },
+      {
+        id: "keema",
+        title: "Keema Noodles",
+        items: [
+          ["Chicken Keema Noodles", "220"],
+          ["Mutton Keema Noodles", "300"],
+          ["Buff Keema Noodles", "280"],
+          ["Mixed Keema Noodles", "280"],
+          ["Spicy Keema Noodles", "240"],
+        ]
+      },
+      {
+        id: "roti",
+        title: "Roti",
+        items: [
+          ["Plain Roti"],
+          ["Butter Roti"],
+          ["Naan Roti"],
+          ["Cheese Roti"],
+          ["Tandoori Roti"],
+        ]
+      },
+      {
+        id: "khana",
+        title: "Khana Set",
+        items: [
+          ["Dal Bhat Set", "200"],
+          ["Chicken Khana Set", "270"],
+          ["Mutton Khana Set", "350-400"],
+          ["Pork Khana Set", "350-400"],
+          ["Egg Khana Set", "250"],
+          ["Thakali Khana Set", "500"],
+        ]
+      },
+      {
+        id: "sausage",
+        title: "Sausage",
+        items: [
+          ["Chicken Sausage", "60 / piece"],
+          ["Buff Sausage", "80 / piece"],
+          ["Pork Sausage", "100 / piece"],
+          ["Cheese Sausage", "120 / piece"],
+        ]
+      },
+      {
+        id: "burger",
+        title: "Burger",
+        items: [
+          ["Chicken Burger", "100-180"],
+          ["Veg Burger", "100-120"],
+          ["Egg Burger", "100-140"],
+          ["Mushroom Burger", "150"],
+          ["Fish Burger", "200"],
+          ["Paneer Burger", "170"],
+          ["BBQ Chicken Burger", "250"],
+          ["Crispy Chicken Burger", "270"],
+        ]
+      },
+      {
+        id: "sandwich",
+        title: "Sandwich",
+        items: [
+          ["Veg Sandwich", "120"],
+          ["Chicken Sandwich", "200"],
+          ["Cheese Sandwich", "180"],
+          ["Grilled Sandwich", "200"],
+          ["Egg Sandwich", "150"],
+          ["Veg Cheese Sandwich", "200"],
+        ]
+      },
+      {
+        id: "gravy",
+        title: "Gravy",
+        items: [
+          ["Egg Curry", "280"],
+          ["Aloo Dum", "180"],
+          ["Fish Curry (250g)", "450"],
+          ["Chicken Kadai (150g with bone)", "550"],
+          ["Chicken Curry", "500"],
+          ["Mutton Curry", "750"],
+          ["Paneer Curry (250g)", "450"],
+          ["Matar Paneer (250g)", "470"],
+          ["Mix Vegetable Curry", "350"],
+        ]
+      },
+      {
+        id: "snacks",
+        title: "Snacks",
+        items: [
+          ["Samosa", "35 / piece"],
+          ["Samosa Chat", "100"],
+          ["Pani Puri", "80 / plate"],
+          ["French Fry", "150"],
+          ["Dahi Chura", "100 / plate"],
+        ]
+      },
     ];
 
-    var nav = document.getElementById("category-nav");
-    var menuEl = document.getElementById("menu");
+    const LOG = "[koseli]";
+    console.log(LOG, "script started");
 
-    // Stops names like "Tom & Jerry" from breaking the HTML
-    function escapeHtml(text) {
-      return text.replace(/[&<>"]/g, function (ch) {
-        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch];
+    // Small helper: creates an element, optionally with a class and text.
+    // textContent is used everywhere, so no HTML escaping is needed.
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    // Checks the data and logs exactly what is wrong instead of crashing.
+    function validateMenu(menu) {
+      const clean = [];
+      if (!Array.isArray(menu)) {
+        console.error(LOG, "MENU is not an array:", menu);
+        return clean;
+      }
+      menu.forEach((category, i) => {
+        if (!category || typeof category.id !== "string" || typeof category.title !== "string" || !Array.isArray(category.items)) {
+          console.warn(LOG, "skipping category #" + i + " (needs id, title and items):", category);
+          return;
+        }
+        const items = category.items.filter((item, j) => {
+          const ok = Array.isArray(item) && typeof item[0] === "string" && item[0] !== "";
+          if (!ok) console.warn(LOG, 'skipping item #' + j + ' in "' + category.title + '":', item);
+          return ok;
+        });
+        clean.push({ id: category.id, title: category.title, note: category.note, items });
+      });
+      return clean;
+    }
+
+    function buildNav(menu, nav) {
+      menu.forEach((category) => {
+        const link = el("a", "", category.title);
+        link.href = "#" + category.id;
+        nav.appendChild(link);
       });
     }
 
-    // Build the category links and the menu sections
-    MENU.forEach(function (category) {
-      nav.insertAdjacentHTML(
-        "beforeend",
-        '<a href="#' + category.id + '">' + escapeHtml(category.title) + "</a>"
-      );
+    function buildMenu(menu, container) {
+      menu.forEach((category) => {
+        const section = el("section");
+        section.id = category.id;
+        section.appendChild(el("h2", "", category.title));
 
-      var html = '<section id="' + category.id + '">';
-      html += "<h2>" + escapeHtml(category.title) + "</h2>";
+        if (category.note) section.appendChild(el("p", "note", category.note));
 
-      if (category.note) {
-        html += '<p class="note">' + escapeHtml(category.note) + "</p>";
-      }
-
-      html += "<ul>";
-      category.items.forEach(function (item) {
-        var name = item[0];
-        var price = item[1];
-        html += '<li><span class="name">' + escapeHtml(name) + "</span>";
-        if (price) {
-          html += '<span class="price">' + CURRENCY + " " + escapeHtml(price) + "</span>";
-        }
-        html += "</li>";
+        const list = el("ul");
+        category.items.forEach((item) => {
+          const row = el("li");
+          row.appendChild(el("span", "name", item[0]));
+          // price is optional and may be a number or text
+          if (item[1] !== undefined && item[1] !== null && String(item[1]).trim() !== "") {
+            row.appendChild(el("span", "price", CURRENCY + " " + String(item[1])));
+          }
+          list.appendChild(row);
+        });
+        section.appendChild(list);
+        container.appendChild(section);
       });
-      html += "</ul></section>";
+    }
 
-      menuEl.insertAdjacentHTML("beforeend", html);
-    });
+    // Fade each section in when it scrolls into view.
+    // If anything about this fails, the sections simply stay visible.
+    function addRevealEffect(container) {
+      const sections = container.querySelectorAll("section");
+      if (!("IntersectionObserver" in window)) return;
 
-    // Fade each section in when it scrolls into view
-    var sections = document.querySelectorAll(".menu section");
+      sections.forEach((section) => section.classList.add("reveal"));
 
-    if ("IntersectionObserver" in window) {
-      var observer = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
           if (entry.isIntersecting) {
             entry.target.classList.add("visible");
             observer.unobserve(entry.target);
           }
         });
       }, { threshold: 0.08 });
+      sections.forEach((section) => observer.observe(section));
 
-      sections.forEach(function (section) { observer.observe(section); });
-    } else {
-      // older browsers: just show everything
-      sections.forEach(function (section) { section.classList.add("visible"); });
+      // safety net: never keep anything hidden for more than 3 seconds
+      setTimeout(() => sections.forEach((s) => s.classList.add("visible")), 3000);
     }
+
+    function init() {
+      console.log(LOG, "DOM ready, building menu");
+      const nav = document.getElementById("category-nav");
+      const container = document.getElementById("menu");
+
+      if (!nav || !container) {
+        console.error(LOG, "missing element:", { nav: nav, menu: container });
+        return;
+      }
+
+      try {
+        const menu = validateMenu(MENU);
+        console.log(LOG, menu.length + " categories, " + menu.reduce((n, c) => n + c.items.length, 0) + " items");
+        buildNav(menu, nav);
+        buildMenu(menu, container);
+        console.log(LOG, "rendered " + container.querySelectorAll("section").length + " sections");
+        addRevealEffect(container);
+      } catch (error) {
+        console.error(LOG, "render failed:", error);
+        container.appendChild(el("p", "menu-error", "Sorry, the menu could not load (" + error.message + "). Please call +977 9702692122."));
+      }
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
+    }
+
+    // Catches any other error on the page and prints it clearly
+    window.addEventListener("error", (e) => console.error(LOG, "uncaught:", e.message, "at line", e.lineno));
   </script>
 
 </body>
